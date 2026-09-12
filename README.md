@@ -2,6 +2,12 @@
 
 > **“Buy only what you need. Sell what you don’t.”**
 
+[![Live Demo](https://img.shields.io/badge/Live%20Website-hema--sph.github.io%2FReBuild-emerald?style=for-the-badge&logo=googlechrome&logoColor=white)](https://hema-sph.github.io/ReBuild/)
+[![GitHub Pages](https://img.shields.io/badge/Deployment-GitHub%20Pages-blue?style=for-the-badge&logo=github)](https://hema-sph.github.io/ReBuild/)
+
+### 🌐 Live Application Link
+👉 **[Open ReBuild Live Website: https://hema-sph.github.io/ReBuild/](https://hema-sph.github.io/ReBuild/)**
+
 ReBuild is an AI-powered circular economy platform built for sustainability hackathons. It tackles construction and renovation waste by connecting suppliers of surplus materials (contractors, builders, remodelers) with small-batch demand (homeowners, repair workers, DIYers).
 
 ---
