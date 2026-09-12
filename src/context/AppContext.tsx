@@ -60,15 +60,59 @@ interface AppContextType {
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
-const STORAGE_KEY_LISTINGS = 'rebuild_listings_v1';
-const STORAGE_KEY_REQUESTS = 'rebuild_requests_v1';
-const STORAGE_KEY_STATS = 'rebuild_stats_v1';
-const STORAGE_KEY_PERSONAL = 'rebuild_personal_v1';
-const STORAGE_KEY_ROLE_MODE = 'rebuild_role_mode_v1';
+const STORAGE_KEY_LISTINGS = 'rebuild_listings_v2';
+const STORAGE_KEY_REQUESTS = 'rebuild_requests_v2';
+const STORAGE_KEY_STATS = 'rebuild_stats_v2';
+const STORAGE_KEY_PERSONAL = 'rebuild_personal_v2';
+const STORAGE_KEY_ROLE_MODE = 'rebuild_role_mode_v2';
+
+const VALID_PAGES: NavigationPage[] = [
+  'home',
+  'marketplace',
+  'list-surplus',
+  'ai-assistant',
+  'material-details',
+  'my-materials',
+  'my-requests',
+  'impact',
+  'profile',
+  'business-dashboard'
+];
+
+const getInitialPage = (): NavigationPage => {
+  if (typeof window !== 'undefined' && window.location.hash) {
+    const hash = window.location.hash.replace('#', '').split('?')[0] as NavigationPage;
+    if (VALID_PAGES.includes(hash)) {
+      return hash;
+    }
+  }
+  return 'home';
+};
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [currentPage, setCurrentPage] = useState<NavigationPage>('home');
+  const [currentPage, setCurrentPageState] = useState<NavigationPage>(getInitialPage);
   const [selectedListingId, setSelectedListingId] = useState<string | null>('mat-001');
+
+  // URL Hash Sync for Browser Back/Forward and direct bookmarking
+  const setCurrentPage = (page: NavigationPage) => {
+    setCurrentPageState(page);
+    if (typeof window !== 'undefined') {
+      window.location.hash = page;
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
+  useEffect(() => {
+    const handleHashChange = () => {
+      const hash = window.location.hash.replace('#', '').split('?')[0] as NavigationPage;
+      if (VALID_PAGES.includes(hash)) {
+        setCurrentPageState(hash);
+      }
+    };
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
+
   const [roleMode, setRoleModeState] = useState<AppRoleMode>(() => {
     const saved = localStorage.getItem(STORAGE_KEY_ROLE_MODE);
     return (saved as AppRoleMode) || 'supplier';

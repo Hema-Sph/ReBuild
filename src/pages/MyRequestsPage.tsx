@@ -48,11 +48,22 @@ export const MyRequestsPage: React.FC = () => {
   // Filter requests based on tab
   const displayedRequests = requests.filter((req) => {
     if (requestTab === 'inbound') {
-      // Inbound to contractors
-      return req.sellerName.includes('Apex') || req.sellerName.includes('Surya') || true;
+      // Inbound to contractors: requests where the current contractor is the seller
+      return (
+        req.sellerName.includes('Apex') ||
+        req.sellerName.includes('Surya') ||
+        req.sellerName.includes('Contractor') ||
+        req.sellerName.includes('You')
+      );
     } else {
-      // Outbound from buyers
-      return req.buyerName.includes('Priya') || req.buyerName.includes('Anil') || true;
+      // Outbound from buyers: requests submitted by the homeowner / repairer
+      return (
+        req.buyerName.includes('Priya') ||
+        req.buyerName.includes('You') ||
+        req.buyerName.includes('Anil') ||
+        req.buyerRole === 'Homeowner' ||
+        req.buyerRole === 'Local Repairer'
+      );
     }
   });
 

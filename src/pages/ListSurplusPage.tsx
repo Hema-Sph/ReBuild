@@ -324,23 +324,53 @@ export const ListSurplusPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Photo URL & Preview */}
+          {/* Photo Upload & Preview */}
           <div className="space-y-2">
-            <label className="text-xs font-bold text-gray-700">Material Photo URL</label>
-            <div className="flex gap-3">
-              <input
-                type="url"
-                value={imageUrl}
-                onChange={(e) => setImageUrl(e.target.value)}
-                placeholder="https://..."
-                className="flex-1 text-xs p-3 rounded-xl border border-gray-200 bg-gray-50 focus:bg-white focus:outline-none focus:border-emerald-500 font-mono"
-              />
-              <div className="w-12 h-12 rounded-xl border overflow-hidden shrink-0 bg-gray-100 flex items-center justify-center">
-                {imageUrl ? (
-                  <img src={imageUrl} alt="preview" className="w-full h-full object-cover" />
-                ) : (
-                  <ImageIcon className="w-5 h-5 text-gray-400" />
-                )}
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-bold text-gray-700">Material Photo (File Upload or URL)</label>
+              <span className="text-[10px] text-gray-400">Supports device camera or image files</span>
+            </div>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {/* File Input */}
+              <label className="flex items-center gap-2 p-2.5 bg-gray-50 border border-dashed border-gray-300 hover:border-emerald-500 rounded-xl cursor-pointer transition-colors text-xs text-gray-600 font-medium">
+                <Upload className="w-4 h-4 text-emerald-600 shrink-0" />
+                <span className="truncate">Choose from Device / Take Photo</span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      const reader = new FileReader();
+                      reader.onloadend = () => {
+                        if (typeof reader.result === 'string') {
+                          setImageUrl(reader.result);
+                        }
+                      };
+                      reader.readAsDataURL(file);
+                    }
+                  }}
+                  className="hidden"
+                />
+              </label>
+
+              {/* URL Input */}
+              <div className="flex gap-2">
+                <input
+                  type="url"
+                  value={imageUrl}
+                  onChange={(e) => setImageUrl(e.target.value)}
+                  placeholder="Or paste image URL (https://...)"
+                  className="flex-1 text-xs p-2.5 rounded-xl border border-gray-200 bg-gray-50 focus:bg-white focus:outline-none focus:border-emerald-500 font-mono"
+                />
+                <div className="w-10 h-10 rounded-xl border overflow-hidden shrink-0 bg-gray-100 flex items-center justify-center">
+                  {imageUrl ? (
+                    <img src={imageUrl} alt="preview" className="w-full h-full object-cover" />
+                  ) : (
+                    <ImageIcon className="w-4 h-4 text-gray-400" />
+                  )}
+                </div>
               </div>
             </div>
           </div>
