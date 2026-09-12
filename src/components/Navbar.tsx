@@ -15,7 +15,8 @@ import {
   Search,
   Upload,
   ArrowLeftRight,
-  ShieldCheck
+  ShieldCheck,
+  MessageSquare
 } from 'lucide-react';
 import { useApp, NavigationPage } from '../context/AppContext';
 
@@ -27,7 +28,9 @@ export const Navbar: React.FC = () => {
     setRoleMode,
     setIsRoleModalOpen,
     requests,
-    setIsHeroDemoActive
+    setIsHeroDemoActive,
+    messages,
+    openMessageCenter
   } = useApp();
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -160,6 +163,21 @@ export const Navbar: React.FC = () => {
 
           {/* Action CTAs */}
           <div className="hidden sm:flex items-center gap-3">
+            {/* Message Center Button */}
+            <button
+              onClick={() => openMessageCenter()}
+              className="relative flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold text-gray-700 bg-gray-100 hover:bg-gray-200 border border-gray-300 transition-smooth shadow-xs"
+              title="Open Contractor-Buyer Direct Message Center"
+            >
+              <MessageSquare className="w-4 h-4 text-emerald-600" />
+              <span>Messages</span>
+              {messages.length > 0 && (
+                <span className="w-4 h-4 flex items-center justify-center text-[10px] font-bold text-white bg-emerald-600 rounded-full">
+                  {messages.length}
+                </span>
+              )}
+            </button>
+
             {/* 30s Hero Demo button */}
             <button
               onClick={() => setIsHeroDemoActive(true)}
@@ -219,10 +237,22 @@ export const Navbar: React.FC = () => {
           </div>
 
           {/* Mobile menu trigger */}
-          <div className="flex items-center gap-2 lg:hidden">
+          <div className="flex items-center gap-1.5 lg:hidden">
+            <button
+              onClick={() => openMessageCenter()}
+              className="relative p-2 rounded-lg text-gray-700 bg-gray-100 hover:bg-gray-200"
+              title="Message Center"
+            >
+              <MessageSquare className="w-4 h-4 text-emerald-600" />
+              {messages.length > 0 && (
+                <span className="absolute -top-1 -right-1 w-4 h-4 flex items-center justify-center text-[9px] font-bold text-white bg-emerald-600 rounded-full">
+                  {messages.length}
+                </span>
+              )}
+            </button>
             <button
               onClick={() => setIsRoleModalOpen(true)}
-              className="px-2.5 py-1 text-[11px] font-bold rounded-lg border bg-gray-100 text-gray-800"
+              className="px-2 py-1 text-[11px] font-bold rounded-lg border bg-gray-100 text-gray-800"
             >
               {roleMode === 'supplier' ? '🏗️ Contractor' : '🛒 Buyer'}
             </button>

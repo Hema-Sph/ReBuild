@@ -5,6 +5,7 @@ import { Footer } from './components/Footer';
 import { HeroDemoModal } from './components/HeroDemoModal';
 import { RoleSelectorModal } from './components/RoleSelectorModal';
 import { Toast } from './components/Toast';
+import { MessageCenterModal } from './components/MessageCenterModal';
 import { HomePage } from './pages/HomePage';
 import { MarketplacePage } from './pages/MarketplacePage';
 import { ListSurplusPage } from './pages/ListSurplusPage';
@@ -55,6 +56,7 @@ const AppContent: React.FC = () => {
       <Footer />
       <HeroDemoModal />
       <RoleSelectorModal />
+      <MessageCenterModal />
       <Toast />
     </div>
   );

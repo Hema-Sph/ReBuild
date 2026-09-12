@@ -138,6 +138,41 @@ export interface AssistantAdvice {
 
 export const ASSISTANT_PRESETS: AssistantAdvice[] = [
   {
+    id: 'room-calc-preset',
+    userPrompt: 'I want tiles for a 100sq room',
+    category: '📐 AI Area Estimator',
+    headline: 'Requirement for 100 sq.ft Room: ~110 Tiles & 2 Adhesive Bags',
+    assessmentSteps: [
+      'Net Surface Area Coverage: Exactly 100 tiles needed to cover a 100 sq.ft floor (300x300mm standard).',
+      'Cutting & Corner Wastage Margin: +10% standard allowance (10 tiles) for perimeter wall cuts, diagonal alignment, and minor breakage. Total recommended = 110 tiles.',
+      'Adhesive / Mortar Requirement: 2 bags (50kg) polymer-modified tile adhesive needed for a 3-4mm thin-set bed.',
+      'Grout / Joint Sealant: 3 kg anti-fungal waterproof tile grout for joint filling.'
+    ],
+    reuseOptions: [
+      {
+        title: 'Source from Local Surplus (~₹880 total)',
+        desc: 'Request 110 tiles from contractor surplus (e.g. Apex Buildcon at ₹8/tile). Save ~₹1,540 compared to buying whole commercial crates at retail.',
+        priority: 'High'
+      },
+      {
+        title: 'Keep 5 Pieces as Maintenance Spares',
+        desc: 'Store 5 spare pieces in a dry indoor shelf so you have exact batch-matched replacements if plumbing repairs are ever needed.',
+        priority: 'Medium'
+      },
+      {
+        title: 'Zero-Waste Cut Pieces Reuse',
+        desc: 'Tile cuts or edge trimmings can be repurposed into garden pot edging, mosaic crafts, or walkway mosaic inserts.',
+        priority: 'Alternative'
+      }
+    ],
+    safetyAdvisory:
+      'Subfloor must be completely level, dry, and free of moisture before tiling. ReBuild materials should be inspected prior to pickup.',
+    avoidActions: [
+      'Do not mix different shade lot numbers within the same room without dry-laying first.',
+      'Never dispose of adhesive wash water down residential storm drains.'
+    ]
+  },
+  {
     id: 'cement-advice',
     userPrompt: 'I have 3 bags of unused cement left after construction.',
     category: 'Cement & Masonry',

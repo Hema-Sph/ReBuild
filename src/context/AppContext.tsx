@@ -5,13 +5,15 @@ import {
   MaterialRequest,
   PlatformImpactStats,
   PersonalImpactStats,
-  SellerType
+  SellerType,
+  ChatMessage
 } from '../types';
 import {
   INITIAL_LISTINGS,
   INITIAL_REQUESTS,
   INITIAL_PLATFORM_STATS,
-  INITIAL_USER_BADGES
+  INITIAL_USER_BADGES,
+  INITIAL_MESSAGES
 } from '../data/seedData';
 import { evaluateSustainabilityBenefit } from '../services/sustainabilityIntelligence';
 
@@ -54,6 +56,14 @@ interface AppContextType {
   resetToDemoData: () => void;
   isHeroDemoActive: boolean;
   setIsHeroDemoActive: (active: boolean) => void;
+  messages: ChatMessage[];
+  sendMessage: (listingId: string, listingTitle: string, receiverName: string, text: string) => void;
+  isMessageCenterOpen: boolean;
+  setIsMessageCenterOpen: (open: boolean) => void;
+  activeMessageListingId: string | null;
+  openMessageCenter: (listingId?: string) => void;
+  userGpsLocation: { lat: number; lng: number; label: string } | null;
+  requestGpsLocation: () => Promise<void>;
   toast: { message: string; type: 'success' | 'info' | 'warning' } | null;
   showToast: (message: string, type?: 'success' | 'info' | 'warning') => void;
 }
@@ -65,6 +75,7 @@ const STORAGE_KEY_REQUESTS = 'rebuild_requests_v2';
 const STORAGE_KEY_STATS = 'rebuild_stats_v2';
 const STORAGE_KEY_PERSONAL = 'rebuild_personal_v2';
 const STORAGE_KEY_ROLE_MODE = 'rebuild_role_mode_v2';
+const STORAGE_KEY_MESSAGES = 'rebuild_messages_v1';
 
 const VALID_PAGES: NavigationPage[] = [
   'home',
@@ -164,6 +175,64 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
   });
 
+  const [messages, setMessages] = useState<ChatMessage[]>(() => {
+    const saved = localStorage.getItem(STORAGE_KEY_MESSAGES);
+    return saved ? JSON.parse(saved) : INITIAL_MESSAGES;
+  });
+
+  const [isMessageCenterOpen, setIsMessageCenterOpen] = useState<boolean>(false);
+  const [activeMessageListingId, setActiveMessageListingId] = useState<string | null>(null);
+
+  const openMessageCenter = (listingId?: string) => {
+    if (listingId) {
+      setActiveMessageListingId(listingId);
+    }
+    setIsMessageCenterOpen(true);
+  };
+
+  const [userGpsLocation, setUserGpsLocation] = useState<{ lat: number; lng: number; label: string } | null>(null);
+
+  const requestGpsLocation = async () => {
+    if (typeof navigator === 'undefined' || !navigator.geolocation) {
+      showToast('Geolocation is not supported by your browser.', 'warning');
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setUserGpsLocation({
+          lat: Number(pos.coords.latitude.toFixed(4)),
+          lng: Number(pos.coords.longitude.toFixed(4)),
+          label: `GPS (${pos.coords.latitude.toFixed(2)}°N, ${pos.coords.longitude.toFixed(2)}°E)`
+        });
+        showToast('📍 Live GPS location active! Nearest surplus ranked first.', 'success');
+      },
+      (err) => {
+        showToast(`Could not access GPS (${err.message}). Using Bengaluru Central default.`, 'warning');
+      },
+      { timeout: 8000 }
+    );
+  };
+
+  const sendMessage = (
+    listingId: string,
+    listingTitle: string,
+    receiverName: string,
+    text: string
+  ) => {
+    const newMsg: ChatMessage = {
+      id: `msg-${Date.now().toString().slice(-4)}`,
+      listingId,
+      listingTitle,
+      senderName: roleMode === 'buyer' ? 'Priya Sharma (You)' : 'Apex Buildcon (You)',
+      senderRole: roleMode,
+      receiverName,
+      text,
+      timestamp: new Date().toISOString()
+    };
+    setMessages((prev) => [...prev, newMsg]);
+    showToast(`Message sent to ${receiverName}!`, 'success');
+  };
+
   // Sync with LocalStorage
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY_LISTINGS, JSON.stringify(listings));
@@ -172,6 +241,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY_REQUESTS, JSON.stringify(requests));
   }, [requests]);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY_MESSAGES, JSON.stringify(messages));
+  }, [messages]);
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY_STATS, JSON.stringify(platformStats));
@@ -293,10 +366,31 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     setRequests((prev) => [newRequest, ...prev]);
 
-    // Update listing requests count
+    // Update listing requests count and lock in reserved quantity
     setListings((prev) =>
-      prev.map((l) => (l.id === listingId ? { ...l, requestsCount: l.requestsCount + 1 } : l))
+      prev.map((l) =>
+        l.id === listingId
+          ? {
+              ...l,
+              requestsCount: l.requestsCount + 1,
+              reservedQuantity: (l.reservedQuantity || 0) + quantity
+            }
+          : l
+      )
     );
+
+    // Auto-create chat message thread entry between buyer and contractor
+    const autoChatMsg: ChatMessage = {
+      id: `msg-${Date.now().toString().slice(-4)}`,
+      listingId: target.id,
+      listingTitle: target.title,
+      senderName: userRole === 'Homeowner' ? 'Priya Sharma (You)' : 'Ramesh Patel (Homeowner)',
+      senderRole: 'buyer',
+      receiverName: target.sellerName,
+      text: `Created request for ${quantity} ${target.unit} for: "${intendedUse || 'Small repair / DIY'}". Looking forward to pickup!`,
+      timestamp: new Date().toISOString()
+    };
+    setMessages((prev) => [...prev, autoChatMsg]);
 
     showToast(`Request sent for ${quantity} ${target.unit} of "${target.title}"!`, 'success');
     return newRequest;
@@ -362,14 +456,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         };
       });
 
-      // Deduct quantity from original listing
+      // Deduct quantity from original listing and clear reserved quantity
       setListings((prev) =>
         prev.map((l) => {
           if (l.id === completedReq?.listingId) {
             const remaining = Math.max(0, l.quantityAvailable - completedReq.quantityRequested);
+            const remainingReserved = Math.max(0, (l.reservedQuantity || 0) - completedReq.quantityRequested);
             return {
               ...l,
               quantityAvailable: remaining,
+              reservedQuantity: remainingReserved,
               currentStatus: remaining === 0 ? 'Reused' : l.currentStatus
             };
           }
@@ -399,10 +495,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const resetToDemoData = () => {
     localStorage.removeItem(STORAGE_KEY_LISTINGS);
     localStorage.removeItem(STORAGE_KEY_REQUESTS);
+    localStorage.removeItem(STORAGE_KEY_MESSAGES);
     localStorage.removeItem(STORAGE_KEY_STATS);
     localStorage.removeItem(STORAGE_KEY_PERSONAL);
     setListings(INITIAL_LISTINGS);
     setRequests(INITIAL_REQUESTS);
+    setMessages(INITIAL_MESSAGES);
     setPlatformStats(INITIAL_PLATFORM_STATS);
     setPersonalStats({
       kgRecirculated: 248,
@@ -440,6 +538,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         resetToDemoData,
         isHeroDemoActive,
         setIsHeroDemoActive,
+        messages,
+        sendMessage,
+        isMessageCenterOpen,
+        setIsMessageCenterOpen,
+        activeMessageListingId,
+        openMessageCenter,
+        userGpsLocation,
+        requestGpsLocation,
         toast,
         showToast
       }}

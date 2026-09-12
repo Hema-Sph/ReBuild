@@ -29,7 +29,9 @@ export const MaterialDetailsPage: React.FC = () => {
     showToast,
     roleMode,
     setRoleMode,
-    optimizeListing
+    optimizeListing,
+    openMessageCenter,
+    sendMessage
   } = useApp();
 
   const listing = listings.find((l) => l.id === selectedListingId) || listings[0];
@@ -40,6 +42,7 @@ export const MaterialDetailsPage: React.FC = () => {
     listing ? Math.min(listing.quantityAvailable >= 12 ? 12 : 1, listing.quantityAvailable) : 1
   );
   const [intendedUse, setIntendedUse] = useState<string>('Small bathroom floor tile replacement');
+  const [liabilityAgreed, setLiabilityAgreed] = useState(false);
 
   useEffect(() => {
     if (listing) {
@@ -75,14 +78,19 @@ export const MaterialDetailsPage: React.FC = () => {
 
   const handleSendRequest = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!liabilityAgreed) return;
     createRequest(listing.id, requestQty, intendedUse);
     setIsRequestModalOpen(false);
+    setLiabilityAgreed(false);
   };
 
   const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault();
-    showToast(`Message sent to ${listing.sellerName}!`, 'info');
-    setIsContactModalOpen(false);
+    if (chatMessage.trim()) {
+      sendMessage(listing.id, listing.title, listing.sellerName, chatMessage.trim());
+      setIsContactModalOpen(false);
+      openMessageCenter(listing.id);
+    }
   };
 
   return (
@@ -147,8 +155,15 @@ export const MaterialDetailsPage: React.FC = () => {
                   <span className="text-xs font-medium text-gray-500"> /{listing.unit}</span>
                 )}
               </div>
-              <div className="text-xs px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-900 border border-emerald-200 font-bold">
-                {listing.quantityAvailable} {listing.unit} available
+              <div className="flex items-center gap-2">
+                <div className="text-xs px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-900 border border-emerald-200 font-bold">
+                  {listing.quantityAvailable} {listing.unit} available
+                </div>
+                {listing.reservedQuantity && listing.reservedQuantity > 0 ? (
+                  <div className="text-xs px-2.5 py-1 rounded-lg bg-amber-50 text-amber-900 border border-amber-200 font-bold">
+                    {listing.reservedQuantity} reserved
+                  </div>
+                ) : null}
               </div>
             </div>
 
@@ -213,10 +228,10 @@ export const MaterialDetailsPage: React.FC = () => {
                       </span>
                     </button>
                     <button
-                      onClick={() => setIsContactModalOpen(true)}
+                      onClick={() => openMessageCenter(listing.id)}
                       className="px-4 py-3.5 rounded-xl border border-gray-200 hover:bg-gray-50 text-gray-700 text-xs font-bold transition-smooth flex items-center justify-center gap-2 shrink-0"
                     >
-                      <MessageSquare className="w-4 h-4" />
+                      <MessageSquare className="w-4 h-4 text-emerald-600" />
                       <span>Message Seller</span>
                     </button>
                   </div>
@@ -403,6 +418,26 @@ export const MaterialDetailsPage: React.FC = () => {
                 />
               </div>
 
+              {/* Safety & Liability Waiver Checkbox */}
+              <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-[11px] text-slate-700 space-y-2">
+                <div className="flex items-start gap-2">
+                  <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                  <span>
+                    <strong>ReBuild Safety & Inspection Waiver:</strong> This is verified surplus material. Buyer agrees to visually inspect pieces before installation and understands surplus items must not be used in unpermitted structural load-bearing components without engineering review.
+                  </span>
+                </div>
+                <label className="flex items-center gap-2 cursor-pointer font-semibold text-slate-900 select-none pt-1 border-t border-slate-200">
+                  <input
+                    type="checkbox"
+                    checked={liabilityAgreed}
+                    onChange={(e) => setLiabilityAgreed(e.target.checked)}
+                    required
+                    className="rounded text-emerald-600 focus:ring-emerald-500 w-4 h-4 accent-emerald-600 cursor-pointer"
+                  />
+                  <span>I agree to the surplus inspection & safety waiver</span>
+                </label>
+              </div>
+
               <div className="pt-2 flex gap-3">
                 <button
                   type="button"
@@ -413,7 +448,12 @@ export const MaterialDetailsPage: React.FC = () => {
                 </button>
                 <button
                   type="submit"
-                  className="w-1/2 py-2.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-md"
+                  disabled={!liabilityAgreed}
+                  className={`w-1/2 py-2.5 text-xs font-bold rounded-xl shadow-md transition-colors ${
+                    liabilityAgreed
+                      ? 'text-white bg-emerald-600 hover:bg-emerald-700 cursor-pointer'
+                      : 'text-gray-400 bg-gray-200 cursor-not-allowed shadow-none'
+                  }`}
                 >
                   Submit Request
                 </button>

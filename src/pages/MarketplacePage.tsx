@@ -15,7 +15,9 @@ import {
   Eye,
   ArrowUpDown,
   Building2,
-  Inbox
+  Inbox,
+  ShieldCheck,
+  Compass
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { MaterialCategory, MaterialListing } from '../types';
@@ -51,7 +53,9 @@ export const MarketplacePage: React.FC = () => {
     setCurrentPage,
     roleMode,
     setRoleMode,
-    setIsRoleModalOpen
+    setIsRoleModalOpen,
+    userGpsLocation,
+    requestGpsLocation
   } = useApp();
 
   const [selectedCategory, setSelectedCategory] = useState<MaterialCategory | 'ALL'>('ALL');
@@ -65,6 +69,7 @@ export const MarketplacePage: React.FC = () => {
   const [requestingItem, setRequestingItem] = useState<MaterialListing | null>(null);
   const [requestQty, setRequestQty] = useState<number>(1);
   const [requestIntendedUse, setRequestIntendedUse] = useState<string>('');
+  const [liabilityAgreed, setLiabilityAgreed] = useState<boolean>(false);
 
   // Natural Language Parsed Interpretation
   const parsedQuery = useMemo(() => {
@@ -107,6 +112,7 @@ export const MarketplacePage: React.FC = () => {
   const handleOpenRequest = (listing: MaterialListing, e: React.MouseEvent) => {
     e.stopPropagation();
     setRequestingItem(listing);
+    setLiabilityAgreed(false);
     // If the parsed query extracted a specific quantity, default to it, else default to 12 (or 1 if unavailable)
     const defaultQty = parsedQuery.quantityMax || parsedQuery.quantityMin || (listing.quantityAvailable >= 12 ? 12 : 1);
     setRequestQty(Math.min(listing.quantityAvailable, Math.max(1, defaultQty)));
@@ -115,9 +121,11 @@ export const MarketplacePage: React.FC = () => {
 
   const handleSubmitRequest = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!liabilityAgreed) return;
     if (requestingItem) {
       createRequest(requestingItem.id, requestQty, requestIntendedUse);
       setRequestingItem(null);
+      setLiabilityAgreed(false);
     }
   };
 
@@ -225,16 +233,59 @@ export const MarketplacePage: React.FC = () => {
 
         {/* AI Interpretation Box if query is active */}
         {hasActiveQuery && (
-          <div className="p-4 rounded-xl bg-emerald-50/80 border border-emerald-200 text-xs space-y-2 animate-in fade-in">
+          <div className="p-4 rounded-xl bg-emerald-50/90 border border-emerald-200 text-xs space-y-3 animate-in fade-in">
             <div className="flex items-center justify-between">
               <span className="font-bold text-emerald-900 flex items-center gap-1.5">
                 <Sparkles className="w-4 h-4 text-emerald-600" />
-                AI Query Interpretation
+                AI Query & Area Interpretation
               </span>
               <span className="text-[11px] font-semibold text-emerald-700">
                 Found {filteredAndRanked.length} potential matches
               </span>
             </div>
+
+            {/* If Room Area Calculation is Active */}
+            {parsedQuery.materialEstimate && (
+              <div className="p-3.5 bg-white rounded-xl border border-emerald-300 shadow-xs space-y-2">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="px-2 py-0.5 rounded-full bg-purple-100 text-purple-900 font-extrabold text-[10px] uppercase tracking-wider">
+                      📐 AI Area Calculator
+                    </span>
+                    <span className="font-bold text-sustain-forest text-xs sm:text-sm">
+                      Room Size: {parsedQuery.materialEstimate.roomAreaSqFt} sq.ft
+                    </span>
+                  </div>
+                  <span className="text-xs font-black text-emerald-700">
+                    Recommended: {parsedQuery.materialEstimate.recommendedQuantity} {parsedQuery.materialEstimate.unit}
+                  </span>
+                </div>
+
+                <p className="text-[11px] text-gray-600 leading-relaxed">
+                  {parsedQuery.materialEstimate.explanation}
+                </p>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 text-[11px] border-t border-gray-100">
+                  <div className="space-y-0.5">
+                    <span className="text-gray-400 font-bold uppercase text-[9px]">Auxiliary Materials Needed:</span>
+                    <ul className="text-gray-700 font-medium list-disc list-inside">
+                      {parsedQuery.materialEstimate.auxiliaryMaterials.map((m, idx) => (
+                        <li key={idx}>{m}</li>
+                      ))}
+                    </ul>
+                  </div>
+                  <div className="space-y-0.5 sm:text-right">
+                    <span className="text-gray-400 font-bold uppercase text-[9px]">Estimated Project Cost:</span>
+                    <div className="font-bold text-emerald-800">
+                      Surplus: ~₹{parsedQuery.materialEstimate.estimatedSurplusCostRupees.toLocaleString()}
+                      <span className="text-gray-400 font-normal line-through ml-1.5">
+                        Retail: ₹{parsedQuery.materialEstimate.estimatedRetailCostRupees.toLocaleString()}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
 
             <div className="flex flex-wrap gap-2 text-[11px]">
               {parsedQuery.category && (
@@ -311,6 +362,32 @@ export const MarketplacePage: React.FC = () => {
                 <option value="Used">Used</option>
                 <option value="Damaged">Damaged / for salvage</option>
               </select>
+            </div>
+
+            {/* GPS Location Finder */}
+            <div className="space-y-1.5 p-2.5 bg-emerald-50/70 border border-emerald-200 rounded-xl">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-emerald-950 flex items-center gap-1.5">
+                  <MapPin className="w-3.5 h-3.5 text-emerald-700" />
+                  My Location
+                </span>
+                {userGpsLocation && (
+                  <span className="text-[10px] px-2 py-0.5 bg-emerald-200 text-emerald-900 rounded-full font-bold">
+                    Active GPS
+                  </span>
+                )}
+              </div>
+              <p className="text-[11px] text-emerald-800">
+                {userGpsLocation ? `Location: ${userGpsLocation.label}` : 'Calculate real transit & distance to nearby job sites.'}
+              </p>
+              <button
+                type="button"
+                onClick={() => requestGpsLocation()}
+                className="w-full py-1.5 px-2.5 rounded-lg text-xs font-bold bg-white text-emerald-800 border border-emerald-300 hover:bg-emerald-100 flex items-center justify-center gap-1.5 transition-colors shadow-xs"
+              >
+                <Compass className="w-3.5 h-3.5 text-emerald-600" />
+                <span>{userGpsLocation ? 'Update GPS Location' : 'Use Current GPS Location'}</span>
+              </button>
             </div>
 
             {/* Distance Slider */}
@@ -469,8 +546,15 @@ export const MarketplacePage: React.FC = () => {
                         <h3 className="text-sm font-bold text-sustain-forest line-clamp-1 group-hover:text-emerald-700 transition-colors">
                           {listing.title}
                         </h3>
-                        <p className="text-xs text-gray-500 mt-0.5">
-                          {listing.quantityAvailable} {listing.unit} available • {listing.condition}
+                        <p className="text-xs text-gray-500 mt-0.5 flex flex-wrap items-center gap-1.5">
+                          <span>{listing.quantityAvailable} {listing.unit} available</span>
+                          {listing.reservedQuantity && listing.reservedQuantity > 0 ? (
+                            <span className="text-[10px] text-amber-800 font-bold bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
+                              {listing.reservedQuantity} in progress
+                            </span>
+                          ) : null}
+                          <span>•</span>
+                          <span>{listing.condition}</span>
                         </p>
                       </div>
 
@@ -632,6 +716,26 @@ export const MarketplacePage: React.FC = () => {
                 </div>
               )}
 
+              {/* Safety & Liability Waiver Checkbox */}
+              <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-[11px] text-slate-700 space-y-2">
+                <div className="flex items-start gap-2">
+                  <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                  <span>
+                    <strong>ReBuild Safety & Inspection Waiver:</strong> This is verified surplus material. Buyer agrees to visually inspect pieces before installation and understands surplus items must not be used in unpermitted structural load-bearing components without engineering review.
+                  </span>
+                </div>
+                <label className="flex items-center gap-2 cursor-pointer font-semibold text-slate-900 select-none pt-1 border-t border-slate-200">
+                  <input
+                    type="checkbox"
+                    checked={liabilityAgreed}
+                    onChange={(e) => setLiabilityAgreed(e.target.checked)}
+                    required
+                    className="rounded text-emerald-600 focus:ring-emerald-500 w-4 h-4 accent-emerald-600 cursor-pointer"
+                  />
+                  <span>I agree to the surplus inspection & safety waiver</span>
+                </label>
+              </div>
+
               <div className="pt-2 flex gap-3">
                 <button
                   type="button"
@@ -642,7 +746,12 @@ export const MarketplacePage: React.FC = () => {
                 </button>
                 <button
                   type="submit"
-                  className="w-1/2 py-2.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl transition-colors shadow-md flex items-center justify-center gap-1.5"
+                  disabled={!liabilityAgreed}
+                  className={`w-1/2 py-2.5 text-xs font-bold rounded-xl transition-colors shadow-md flex items-center justify-center gap-1.5 ${
+                    liabilityAgreed
+                      ? 'text-white bg-emerald-600 hover:bg-emerald-700 cursor-pointer'
+                      : 'text-gray-400 bg-gray-200 cursor-not-allowed shadow-none'
+                  }`}
                 >
                   <Send className="w-3.5 h-3.5" />
                   <span>Send Request</span>

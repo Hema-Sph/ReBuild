@@ -64,6 +64,7 @@ export interface MaterialListing {
   weightKgPerUnit: number; // For verifiable waste diversion calculations
   daysListed: number; // For AI Waste-Risk identification (>14 days with 0 requests)
   requestsCount: number;
+  reservedQuantity?: number; // Real-time quantity locked in active buyer requests
   isSafetyCritical?: boolean;
   safetyWarning?: string;
   availableUntil: string;
@@ -118,6 +119,19 @@ export interface AIAnalysisResult {
   safetyCaution?: string;
 }
 
+export interface MaterialAreaEstimate {
+  roomAreaSqFt: number;
+  materialType: string;
+  baseQuantity: number;
+  wastageBufferPercent: number; // e.g. 10%
+  recommendedQuantity: number; // e.g. 110 pieces
+  unit: UnitType;
+  auxiliaryMaterials: string[]; // e.g. ["2 bags (50kg) tile adhesive / mortar", "3 kg waterproof grout"]
+  estimatedSurplusCostRupees: number;
+  estimatedRetailCostRupees: number;
+  explanation: string;
+}
+
 export interface ParsedSearchQuery {
   rawQuery: string;
   category?: MaterialCategory;
@@ -127,6 +141,19 @@ export interface ParsedSearchQuery {
   budgetMax?: number;
   intendedUse?: string;
   maxDistanceKm?: number;
+  roomAreaSqFt?: number;
+  materialEstimate?: MaterialAreaEstimate;
+}
+
+export interface ChatMessage {
+  id: string;
+  listingId: string;
+  listingTitle: string;
+  senderName: string;
+  senderRole: 'buyer' | 'supplier';
+  receiverName: string;
+  text: string;
+  timestamp: string;
 }
 
 export interface SearchMatchResult {

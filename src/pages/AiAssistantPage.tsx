@@ -13,17 +13,20 @@ import {
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { ASSISTANT_PRESETS, AssistantAdvice } from '../services/aiMaterialAnalyzer';
+import { calculateRoomMaterialEstimate } from '../services/aiMatchingEngine';
 
 export const AiAssistantPage: React.FC = () => {
-  const { setCurrentPage } = useApp();
+  const { setCurrentPage, setSearchQuery } = useApp();
 
   const [inputQuery, setInputQuery] = useState<string>('');
   const [activeAdvice, setActiveAdvice] = useState<AssistantAdvice | null>(ASSISTANT_PRESETS[0]);
   const [isThinking, setIsThinking] = useState<boolean>(false);
+  const [activeEstimateQuery, setActiveEstimateQuery] = useState<string | null>(null);
 
   const handleSelectPreset = (preset: AssistantAdvice) => {
     setInputQuery(preset.userPrompt);
     setActiveAdvice(preset);
+    setActiveEstimateQuery(null);
   };
 
   const handleConsultAI = (e: React.FormEvent) => {
@@ -32,8 +35,78 @@ export const AiAssistantPage: React.FC = () => {
 
     setIsThinking(true);
     setTimeout(() => {
-      // Find matching preset or generate dynamic advisory
       const lower = inputQuery.toLowerCase();
+
+      // Check if user is asking for a room area calculation (e.g. "I want tiles for a 100sq room")
+      const isAreaQuery =
+        lower.includes('sq') ||
+        lower.includes('sqft') ||
+        lower.includes('room') ||
+        lower.includes('square') ||
+        /\d+\s*(?:x|\*|by)\s*\d+/.test(lower);
+
+      if (isAreaQuery) {
+        // Extract room area
+        let area = 100; // default to 100 if unspecified
+        const dimMatch = lower.match(/(\d+(?:\.\d+)?)\s*(?:x|\*|by)\s*(\d+(?:\.\d+)?)/);
+        if (dimMatch) {
+          area = Math.round(parseFloat(dimMatch[1]) * parseFloat(dimMatch[2]));
+        } else {
+          const areaMatch = lower.match(/(\d+(?:\.\d+)?)\s*(?:sq\s*ft|sqft|sq\.?\s*ft|square\s*feet|sqm|sq\s*room|sq)/);
+          if (areaMatch) {
+            area = Math.round(parseFloat(areaMatch[1]));
+          }
+        }
+
+        const isWood = lower.includes('wood') || lower.includes('timber') || lower.includes('plank');
+        const isBrick = lower.includes('brick') || lower.includes('paver');
+        const cat = isWood ? 'Wood' : isBrick ? 'Bricks' : 'Tiles';
+        
+        const est = calculateRoomMaterialEstimate(cat, area, isWood ? 'wood' : isBrick ? 'brick' : 'tile');
+        setActiveEstimateQuery(inputQuery);
+
+        const areaAdvice: AssistantAdvice = {
+          id: 'area-calc-advice',
+          userPrompt: inputQuery,
+          category: `Civil Engineering Estimator (${area} sq.ft Room)`,
+          headline: `Requirement for ${area} sq.ft Room: ~${est.recommendedQuantity} ${est.unit} & ${est.auxiliaryMaterials[0].split('(')[0]}`,
+          assessmentSteps: [
+            `Net Surface Area Coverage: Exactly ${est.baseQuantity} ${est.unit} needed for ${area} sq.ft floor area.`,
+            `Cutting & Corner Wastage Margin: +${est.wastageBufferPercent}% standard allowance (${est.recommendedQuantity - est.baseQuantity} ${est.unit}) for wall cuts, diagonal alignment, and minor transit breakage. Total recommended = ${est.recommendedQuantity} ${est.unit}.`,
+            `Adhesive / Mortar Requirement: ${est.auxiliaryMaterials[0]}.`,
+            `Grout / Joint Sealant: ${est.auxiliaryMaterials[1] || 'Surface finishing membrane'}.`
+          ],
+          reuseOptions: [
+            {
+              title: `Source from Local Surplus (~₹${est.estimatedSurplusCostRupees.toLocaleString()})`,
+              desc: `Buy ${est.recommendedQuantity} pieces from contractor surplus. Save ~₹${(est.estimatedRetailCostRupees - est.estimatedSurplusCostRupees).toLocaleString()} compared to buying whole commercial crates at retail.`,
+              priority: 'High'
+            },
+            {
+              title: 'Keep 5 Pieces as Maintenance Spares',
+              desc: 'Store 5 spare pieces in a dry indoor shelf so you have exact batch-matched replacements if plumbing repairs are ever needed.',
+              priority: 'Medium'
+            },
+            {
+              title: 'Zero-Waste Cut Pieces Reuse',
+              desc: 'Tile cuts or edge trimmings can be repurposed into garden pot edging, mosaic crafts, or walkway mosaic inserts.',
+              priority: 'Alternative'
+            }
+          ],
+          safetyAdvisory:
+            'Subfloor must be completely level, dry, and free of moisture before tiling. ReBuild materials should be inspected prior to pickup.',
+          avoidActions: [
+            'Do not mix different shade lot numbers within the same room without dry-laying first.',
+            'Never dispose of adhesive wash water down residential storm drains.'
+          ]
+        };
+
+        setActiveAdvice(areaAdvice);
+        setIsThinking(false);
+        return;
+      }
+
+      // Find matching preset or generate dynamic advisory
       let matched = ASSISTANT_PRESETS.find(
         (p) =>
           lower.includes(p.category.toLowerCase().split(' ')[0]) ||
@@ -41,7 +114,6 @@ export const AiAssistantPage: React.FC = () => {
       );
 
       if (!matched) {
-        // Fallback realistic advice generator
         matched = {
           id: 'dyn-advice',
           userPrompt: inputQuery,
@@ -79,6 +151,7 @@ export const AiAssistantPage: React.FC = () => {
       }
 
       setActiveAdvice(matched);
+      setActiveEstimateQuery(null);
       setIsThinking(false);
     }, 600);
   };
@@ -268,18 +341,34 @@ export const AiAssistantPage: React.FC = () => {
             </ul>
           </div>
 
-          {/* Action CTA: Turn Advice into Listing */}
-          <div className="pt-2 flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-gray-100">
+          {/* Action CTA: Turn Advice into Listing or Find Matching Batches */}
+          <div className="pt-2 flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-gray-100">
             <div className="text-xs text-gray-500">
-              Ready to find a nearby recipient for this material?
+              {activeEstimateQuery
+                ? 'Ready to source this estimated batch from local contractors?'
+                : 'Ready to find a nearby recipient for this material?'}
             </div>
-            <button
-              onClick={() => setCurrentPage('list-surplus')}
-              className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md shadow-emerald-600/20 active:scale-95 transition-smooth flex items-center justify-center gap-2"
-            >
-              <PlusCircle className="w-4 h-4" />
-              <span>List This Surplus Material on ReBuild</span>
-            </button>
+            <div className="flex gap-2 w-full sm:w-auto">
+              {activeEstimateQuery && (
+                <button
+                  onClick={() => {
+                    setSearchQuery(activeEstimateQuery);
+                    setCurrentPage('marketplace');
+                  }}
+                  className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-purple-700 hover:bg-purple-800 text-white text-xs font-bold shadow-md shadow-purple-700/20 active:scale-95 transition-smooth flex items-center justify-center gap-2"
+                >
+                  <Sparkles className="w-4 h-4" />
+                  <span>Browse Matched Lots in Marketplace</span>
+                </button>
+              )}
+              <button
+                onClick={() => setCurrentPage('list-surplus')}
+                className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md shadow-emerald-600/20 active:scale-95 transition-smooth flex items-center justify-center gap-2"
+              >
+                <PlusCircle className="w-4 h-4" />
+                <span>List This Surplus Material</span>
+              </button>
+            </div>
           </div>
         </div>
       )}

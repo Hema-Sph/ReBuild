@@ -1,4 +1,4 @@
-import { MaterialListing, MaterialRequest, PlatformImpactStats, UserBadge } from '../types';
+import { MaterialListing, MaterialRequest, PlatformImpactStats, UserBadge, ChatMessage } from '../types';
 
 export const INITIAL_LISTINGS: MaterialListing[] = [
   {
@@ -541,5 +541,28 @@ export const INITIAL_USER_BADGES: UserBadge[] = [
     description: 'Rescued a material lot classified under high AI Waste-Risk.',
     icon: 'ShieldCheck',
     unlocked: false
+  }
+];
+
+export const INITIAL_MESSAGES: ChatMessage[] = [
+  {
+    id: 'msg-001',
+    listingId: 'mat-001',
+    listingTitle: 'Ceramic Floor Tiles (Ivory Glazed 300x300mm)',
+    senderName: 'Priya Sharma',
+    senderRole: 'buyer',
+    receiverName: 'Apex Buildcon (Contractors)',
+    text: 'Hi! I need 12 tiles for our bathroom repair. Can I pick them up today around 4:30 PM?',
+    timestamp: '2026-09-11T11:20:00Z'
+  },
+  {
+    id: 'msg-002',
+    listingId: 'mat-001',
+    listingTitle: 'Ceramic Floor Tiles (Ivory Glazed 300x300mm)',
+    senderName: 'Apex Buildcon (Contractors)',
+    senderRole: 'supplier',
+    receiverName: 'Priya Sharma',
+    text: 'Yes Priya! The batch is kept ready in Gate 2 store room. Ask for store in-charge Ramesh at Indiranagar site. Bring a bag or carton.',
+    timestamp: '2026-09-11T11:45:00Z'
   }
 ];
