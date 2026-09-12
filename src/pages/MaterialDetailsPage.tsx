@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   ArrowLeft,
   MapPin,
@@ -13,10 +13,12 @@ import {
   Phone,
   Layers,
   Scale,
-  Building2
+  Building2,
+  ShoppingCart
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { evaluateSustainabilityBenefit } from '../services/sustainabilityIntelligence';
+import { QuantitySelector } from '../components/QuantitySelector';
 
 export const MaterialDetailsPage: React.FC = () => {
   const {
@@ -32,10 +34,18 @@ export const MaterialDetailsPage: React.FC = () => {
 
   const listing = listings.find((l) => l.id === selectedListingId) || listings[0];
 
-  // Request modal state
+  // Request modal & order quantity state
   const [isRequestModalOpen, setIsRequestModalOpen] = useState(false);
-  const [requestQty, setRequestQty] = useState<number>(12);
+  const [requestQty, setRequestQty] = useState<number>(() =>
+    listing ? Math.min(listing.quantityAvailable >= 12 ? 12 : 1, listing.quantityAvailable) : 1
+  );
   const [intendedUse, setIntendedUse] = useState<string>('Small bathroom floor tile replacement');
+
+  useEffect(() => {
+    if (listing) {
+      setRequestQty(Math.min(listing.quantityAvailable >= 12 ? 12 : 1, listing.quantityAvailable));
+    }
+  }, [listing?.id]);
 
   // Seller contact modal state
   const [isContactModalOpen, setIsContactModalOpen] = useState(false);
@@ -170,28 +180,50 @@ export const MaterialDetailsPage: React.FC = () => {
           </div>
 
           {/* Action CTAs: Dedicated by Role */}
-          <div className="space-y-3 pt-4">
+          <div className="space-y-4 pt-4 border-t border-gray-100">
             {roleMode === 'buyer' ? (
-              <div className="space-y-2">
-                <div className="flex gap-3">
-                  <button
-                    onClick={() => setIsRequestModalOpen(true)}
-                    className="flex-1 py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md shadow-emerald-600/20 active:scale-95 transition-smooth flex items-center justify-center gap-2"
-                  >
-                    <Send className="w-4 h-4" />
-                    <span>Request Material (Select Qty)</span>
-                  </button>
-                  <button
-                    onClick={() => setIsContactModalOpen(true)}
-                    className="px-4 py-3.5 rounded-xl border border-gray-200 hover:bg-gray-50 text-gray-700 text-xs font-bold transition-smooth flex items-center justify-center gap-2"
-                  >
-                    <MessageSquare className="w-4 h-4" />
-                    <span>Message Seller</span>
-                  </button>
+              <div className="space-y-4">
+                {/* Embedded Custom Quantity Selector */}
+                <QuantitySelector
+                  quantity={requestQty}
+                  onChange={setRequestQty}
+                  maxAvailable={listing.quantityAvailable}
+                  minAllowed={1}
+                  unit={listing.unit}
+                  pricePerUnit={listing.pricePerUnit}
+                  weightKgPerUnit={listing.weightKgPerUnit}
+                  showQuickPills={true}
+                  showSlider={true}
+                  showSummary={true}
+                  label={`Select Custom Quantity You Need (${listing.unit})`}
+                  helperText="ReBuild allows you to source exact small quantities without paying for full commercial cartons."
+                />
+
+                <div className="space-y-2 pt-1">
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <button
+                      onClick={() => setIsRequestModalOpen(true)}
+                      className="flex-1 py-3.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs sm:text-sm font-bold shadow-md shadow-emerald-600/20 active:scale-95 transition-smooth flex items-center justify-center gap-2"
+                    >
+                      <ShoppingCart className="w-4 h-4" />
+                      <span>
+                        {listing.pricePerUnit === 0
+                          ? `Request Free Lot (${requestQty} ${listing.unit})`
+                          : `Request ${requestQty} ${listing.unit} · ₹${(listing.pricePerUnit * requestQty).toLocaleString()}`}
+                      </span>
+                    </button>
+                    <button
+                      onClick={() => setIsContactModalOpen(true)}
+                      className="px-4 py-3.5 rounded-xl border border-gray-200 hover:bg-gray-50 text-gray-700 text-xs font-bold transition-smooth flex items-center justify-center gap-2 shrink-0"
+                    >
+                      <MessageSquare className="w-4 h-4" />
+                      <span>Message Seller</span>
+                    </button>
+                  </div>
+                  <p className="text-[10px] text-center text-gray-400">
+                    Direct local pickup: Verified contractor surplus batch stored in {listing.location.split(',')[0]}.
+                  </p>
                 </div>
-                <p className="text-[10px] text-center text-gray-400">
-                  Buyer Mode: Request exact small batch without buying full wholesale boxes.
-                </p>
               </div>
             ) : (
               <div className="space-y-2">
@@ -341,21 +373,21 @@ export const MaterialDetailsPage: React.FC = () => {
             </div>
 
             <form onSubmit={handleSendRequest} className="p-6 space-y-4">
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-gray-700 flex justify-between">
-                  <span>Quantity You Need ({listing.unit})</span>
-                  <span className="text-gray-400 font-normal">Available: {listing.quantityAvailable}</span>
-                </label>
-                <input
-                  type="number"
-                  min={listing.minQuantityAllowed}
-                  max={listing.quantityAvailable}
-                  value={requestQty}
-                  onChange={(e) => setRequestQty(Math.max(1, Number(e.target.value)))}
-                  className="w-full text-sm p-3 rounded-xl border border-gray-200 bg-gray-50 font-bold focus:bg-white focus:outline-none focus:border-emerald-500"
-                  required
-                />
-              </div>
+              {/* Custom Quantity Selector in Modal */}
+              <QuantitySelector
+                quantity={requestQty}
+                onChange={setRequestQty}
+                maxAvailable={listing.quantityAvailable}
+                minAllowed={1}
+                unit={listing.unit}
+                pricePerUnit={listing.pricePerUnit}
+                weightKgPerUnit={listing.weightKgPerUnit}
+                showQuickPills={true}
+                showSlider={true}
+                showSummary={true}
+                label={`Custom Quantity You Need (${listing.unit})`}
+                helperText="Enter or step any quantity required. The remainder stays available in the lot."
+              />
 
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-gray-700">
@@ -369,19 +401,6 @@ export const MaterialDetailsPage: React.FC = () => {
                   className="w-full text-xs p-3 rounded-xl border border-gray-200 bg-gray-50 focus:bg-white focus:outline-none focus:border-emerald-500"
                   required
                 />
-              </div>
-
-              <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-100 text-xs space-y-1">
-                <div className="flex justify-between font-semibold text-emerald-950">
-                  <span>Estimated Total:</span>
-                  <span>₹{(listing.pricePerUnit * requestQty).toLocaleString()}</span>
-                </div>
-                <div className="flex justify-between text-[11px] text-gray-600">
-                  <span>Potential Waste Diverted:</span>
-                  <span className="font-bold text-emerald-800">
-                    {(requestQty * listing.weightKgPerUnit).toFixed(1)} kg
-                  </span>
-                </div>
               </div>
 
               <div className="pt-2 flex gap-3">

@@ -23,6 +23,7 @@ import {
   parseNaturalLanguageQuery,
   searchAndRankListings
 } from '../services/aiMatchingEngine';
+import { QuantitySelector } from '../components/QuantitySelector';
 
 const CATEGORIES: { id: MaterialCategory | 'ALL'; label: string }[] = [
   { id: 'ALL', label: 'All Materials' },
@@ -106,9 +107,9 @@ export const MarketplacePage: React.FC = () => {
   const handleOpenRequest = (listing: MaterialListing, e: React.MouseEvent) => {
     e.stopPropagation();
     setRequestingItem(listing);
-    // If the parsed query extracted a specific quantity, default to it
-    const defaultQty = parsedQuery.quantityMax || parsedQuery.quantityMin || 1;
-    setRequestQty(Math.min(listing.quantityAvailable, Math.max(listing.minQuantityAllowed, defaultQty)));
+    // If the parsed query extracted a specific quantity, default to it, else default to 12 (or 1 if unavailable)
+    const defaultQty = parsedQuery.quantityMax || parsedQuery.quantityMin || (listing.quantityAvailable >= 12 ? 12 : 1);
+    setRequestQty(Math.min(listing.quantityAvailable, Math.max(1, defaultQty)));
     setRequestIntendedUse(parsedQuery.intendedUse || 'Small repair / DIY renovation');
   };
 
@@ -592,27 +593,21 @@ export const MarketplacePage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Quantity Input */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-gray-700 flex justify-between">
-                  <span>Quantity You Need ({requestingItem.unit})</span>
-                  <span className="text-gray-400 font-normal">
-                    Max: {requestingItem.quantityAvailable}
-                  </span>
-                </label>
-                <input
-                  type="number"
-                  min={requestingItem.minQuantityAllowed}
-                  max={requestingItem.quantityAvailable}
-                  value={requestQty}
-                  onChange={(e) => setRequestQty(Math.max(1, Number(e.target.value)))}
-                  className="w-full text-sm p-2.5 rounded-xl border border-gray-200 bg-gray-50 focus:bg-white focus:outline-none focus:border-emerald-500 font-semibold"
-                  required
-                />
-                <p className="text-[11px] text-gray-500">
-                  Total price: <strong>₹{(requestingItem.pricePerUnit * requestQty).toLocaleString()}</strong>
-                </p>
-              </div>
+              {/* Enhanced Custom Quantity Selector */}
+              <QuantitySelector
+                quantity={requestQty}
+                onChange={setRequestQty}
+                maxAvailable={requestingItem.quantityAvailable}
+                minAllowed={1}
+                unit={requestingItem.unit}
+                pricePerUnit={requestingItem.pricePerUnit}
+                weightKgPerUnit={requestingItem.weightKgPerUnit}
+                showQuickPills={true}
+                showSlider={true}
+                showSummary={true}
+                label={`Select Exact Quantity You Need (${requestingItem.unit})`}
+                helperText="Request any quantity for your repair. You only pay for what you take; the rest stays in contractor's stock."
+              />
 
               {/* Intended Use Input */}
               <div className="space-y-1.5">
